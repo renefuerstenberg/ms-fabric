@@ -1,0 +1,21 @@
+# Secrets and local settings
+local.settings.json
+.env
+*.env
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.python_packages/
+
+# Azure Functions
+bin/
+obj/
+.azurefunctions/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
