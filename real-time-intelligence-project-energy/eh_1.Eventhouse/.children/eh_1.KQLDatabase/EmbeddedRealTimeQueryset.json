@@ -27,6 +27,18 @@
         "content": "GridFrequency()\n| where ts > ago(10h)\n| summarize Seconds = count()\n    by Hour = bin(datetime_utc_to_local(ts, \"Europe/Berlin\"), 1h)\n| order by Hour asc",
         "title": "",
         "dataSourceId": "710cba50-4849-4de1-8c14-30c3c6bd5c29"
+      },
+      {
+        "id": "0f16de24-d151-4649-836a-b91a46161bec",
+        "content": "LoadAndShare\n| where ts <= now()\n| top 1 by ts desc\n| project Time_local, RenewableShare_Pct, ResidualLoad_GW\n\n\nenergy_latest\n| where endpoint == \"signal\" and series_id == \"share\" and ts <= now()\n| top 1 by ts desc\n| project [\"Renewable share %\"] = round(value, 1)\n\nunion\n    (LoadAndShare() | where ts <= now() | top 1 by ts desc\n     | project Quelle = \"LoadAndShare (gemessen)\", Time_local, Anteil = RenewableShare_Pct),\n    (TrafficLight() | where ts <= now() | top 1 by ts desc\n     | project Quelle = \"TrafficLight (Ampel, jetzt)\", Time_local, Anteil = RenewableShare_Pct)",
+        "title": "",
+        "dataSourceId": "710cba50-4849-4de1-8c14-30c3c6bd5c29"
+      },
+      {
+        "id": "4baf6e4b-74a6-405d-a793-d886ff618cbb",
+        "content": "let today_local = startofday(datetime_utc_to_local(now(), \"Europe/Berlin\"));\nlet from_utc = datetime_local_to_utc(today_local, \"Europe/Berlin\");\nlet to_utc   = datetime_local_to_utc(today_local + 1d, \"Europe/Berlin\");\nDayAheadPrice()\n| where ts >= from_utc and ts < to_utc\n| top 5 by Price_ct_kWh asc\n| project Time_local, Price_ct_kWh, Price_EUR_MWh\n\n\n\n\nlet today_local = startofday(datetime_utc_to_local(now(), \"Europe/Berlin\"));\nlet from_utc = datetime_local_to_utc(today_local, \"Europe/Berlin\");\nlet to_utc   = datetime_local_to_utc(today_local + 1d, \"Europe/Berlin\");\nlet day = DayAheadPrice() | where ts >= from_utc and ts < to_utc;\nday\n| summarize Avg_ct_kWh = round(avg(Price_ct_kWh), 2), QuarterHours = count()\n    by Hour_local = bin(Time_local, 1h)\n| top 3 by Avg_ct_kWh asc\n| extend DayMin = toscalar(day | summarize round(min(Price_ct_kWh), 2)),\n         DayAvg = toscalar(day | summarize round(avg(Price_ct_kWh), 2)),\n         DayMax = toscalar(day | summarize round(max(Price_ct_kWh), 2)),\n         DayQuarterHours = toscalar(day | count)",
+        "title": "",
+        "dataSourceId": "710cba50-4849-4de1-8c14-30c3c6bd5c29"
       }
     ],
     "querysetType": "Embedded"
