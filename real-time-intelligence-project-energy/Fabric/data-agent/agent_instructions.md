@@ -25,6 +25,11 @@ How to answer:
   load and cross-border data (15–90 minutes or more). The traffic light / renewable share signal
   and the day-ahead prices are available for the current quarter-hour – do not mention a delay
   for them.
+- Current renewable share ("now", "right now", "current", "at the moment"): always ask the
+  database to use TrafficLight() – it has a value for the current quarter-hour. Never use
+  LoadAndShare() for the current renewable share: its measured values lag 1–3 hours.
+  Use LoadAndShare() only for past periods and for load or residual load; for "current" load,
+  say which time the latest measured value refers to.
 - Renewable share above 100 % is valid: more renewable generation than consumption.
 - The renewable share includes wind, solar, biomass and hydro. Never call it the "wind and solar share".
 - Keep answers short: a direct answer first, then at most a few supporting numbers.
