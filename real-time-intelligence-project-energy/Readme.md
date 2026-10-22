@@ -7,6 +7,8 @@ Microsoft Fabric**. Azure Functions poll the public Energy-Charts API of Fraunho
 Eventstream routes the events into an Eventhouse, where the data is kept permanently. A
 Real-Time Dashboard, Activator alerts and a Fabric data agent sit on top of the Eventhouse.
 
+📖 **Step-by-step walkthrough:** [From API to Data Agent – Germany's power grid with Real-Time Intelligence in Microsoft Fabric](https://renefuerstenberg.de/microsoftfabric/from-api-to-data-agent-germanys-power-grid-with-real-time-intelligence-in-microsoft-fabric/)
+
 ```
 API → Azure Functions → Eventstream → Eventhouse → Dashboard · Activator · Data Agent
 ```
