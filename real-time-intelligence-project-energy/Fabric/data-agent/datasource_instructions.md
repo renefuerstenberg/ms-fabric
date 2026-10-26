@@ -3,6 +3,7 @@ IMPORTANT:
 - "Now", "current", "right now" means the most recent timestamp that is not in the future: always filter ts <= now() before taking the latest value. TrafficLight() and DayAheadPrice() contain future values (forecasts, tomorrow's prices).
 - Day-ahead prices for today (and tomorrow, once published) are already fixed. For daily price statistics include the whole day, do not cut at now().
 - ts is UTC. Always show Time_local to the user, never ts.
+- Daylight saving time: when the clocks go back in October, 02:00–03:00 local time occurs twice, so Time_local is not unique. Sum over sources or countries per ts (UTC), never per Time_local. Never average or merge the two passes of that hour: when grouping by local time, also group by UtcOffset = Time_local - ts and report the repeated hour twice, labeled "summer time (CEST)" and "winter time (CET)".
 - For the current renewable share always use TrafficLight() (it has a value for the current quarter-hour). Never use LoadAndShare() for "now" – its measured values lag 1–3 hours. Use LoadAndShare() for past periods, measured actuals, load and residual load.
 - Weeks start on Monday (German convention). Do not use startofweek() with a second parameter – it is an offset in weeks, not the first day of the week. Compute Monday like this:
   let today_local = startofday(datetime_utc_to_local(now(), "Europe/Berlin"));

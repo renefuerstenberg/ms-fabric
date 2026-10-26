@@ -104,12 +104,13 @@ let Sources = datatable(series_id: string, Source: string)
 energy_latest
 | where endpoint == "public_power" and ts between (_startTime .. _endTime)
 | join kind=inner Sources on series_id
-// First sum per UTC quarter-hour, then average per local time: when the
-// clocks go back in October, 02:00-03:00 local time occurs twice. Summing
-// by local time would double that hour; the average keeps the right level.
+// Sum per UTC quarter-hour, never per local time.
+// Exact values only: when the clocks go back in October, 02:00-03:00 local
+// time occurs twice. A stacked/bar chart cannot show two values at the same
+// time, so only the first pass (summer time) is shown; nothing is averaged.
 | summarize MW = sum(value) by ts, Source
-| summarize GW = round(avg(MW) / 1000, 2)
-    by Time = datetime_utc_to_local(ts, "Europe/Berlin"), Source
+| summarize arg_min(ts, MW) by Time = datetime_utc_to_local(ts, "Europe/Berlin"), Source
+| project Time, Source, GW = round(MW / 1000, 2)
 | order by Time asc
 
 
@@ -124,6 +125,8 @@ energy_latest
 | where endpoint == "public_power"
     and series_id in ("load", "residual_load")
     and ts between (_startTime .. _endTime)
+// No aggregation by local time: when the clocks go back in October,
+// 02:00-03:00 local time occurs twice and the chart shows both exact values.
 | project Time = datetime_utc_to_local(ts, "Europe/Berlin"),
           Series = iff(series_id == "load", "Load", "Residual load"),
           GW = round(value / 1000, 2)
@@ -145,6 +148,8 @@ union
      | where endpoint == "signal" and series_id == "share"
      | extend Series = "Signal incl. forecast")
 | where ts between (_startTime .. now() + 24h)
+// No aggregation by local time: when the clocks go back in October,
+// 02:00-03:00 local time occurs twice and the chart shows both exact values.
 | project Time = datetime_utc_to_local(ts, "Europe/Berlin"), Series, Percent = round(value, 1)
 | order by Time asc
 
@@ -196,6 +201,8 @@ let LatestComplete = iff(isnotnull(complete11) and complete11 >= cbpf_max - 6h, 
 energy_latest
 | where endpoint == "cbpf" and series_id == "sum"
     and ts between (_startTime .. _endTime) and ts <= LatestComplete
+// No aggregation by local time: when the clocks go back in October,
+// 02:00-03:00 local time occurs twice and the chart shows both exact values.
 | project Time = datetime_utc_to_local(ts, "Europe/Berlin"), ["Net import GW"] = round(value, 2)
 | order by Time asc
 

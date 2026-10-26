@@ -53,6 +53,10 @@ energy_latest
 | where endpoint == "price"
 | extend Time = datetime_utc_to_local(ts, "Europe/Berlin")
 | where Time >= today and Time < today + 2d
+// Exact values only: when the clocks go back in October, 02:00-03:00 local
+// time occurs twice. A stacked/bar chart cannot show two values at the same
+// time, so only the first pass (summer time) is shown; nothing is averaged.
+| summarize arg_min(ts, value) by Time
 | project Time,
           Day = iff(Time < today + 1d, "Today", "Tomorrow"),
           ["ct/kWh"] = round(value / 10, 2)
@@ -106,6 +110,8 @@ let renewables = energy_latest
     | project ts, Renewable_Share_Pct = round(value, 1);
 price
 | join kind=fullouter renewables on ts
+// No aggregation by local time: when the clocks go back in October,
+// 02:00-03:00 local time occurs twice and the chart shows both exact values.
 | project Time = datetime_utc_to_local(coalesce(ts, ts1), "Europe/Berlin"),
           Price_ct_kWh, Renewable_Share_Pct
 | order by Time asc

@@ -142,6 +142,8 @@ GridFrequency()
 // ------------------------------------------------------------
 GridFrequency()
 | where ts > ago(1h)
+// No aggregation by local time: when the clocks go back in October,
+// 02:00-03:00 local time occurs twice and the chart shows both exact values.
 | project Time = datetime_utc_to_local(ts, "Europe/Berlin"), ["Frequency (Hz)"] = hz
 | order by Time asc
 
@@ -154,6 +156,8 @@ GridFrequency()
 // ------------------------------------------------------------
 frequency_1min
 | where ts between (_startTime .. _endTime)
+// No aggregation by local time: when the clocks go back in October,
+// 02:00-03:00 local time occurs twice and the chart shows both exact values.
 | project Time = datetime_utc_to_local(ts, "Europe/Berlin"),
           ["Minimum"] = round(hz_min, 3),
           ["Average"] = round(hz_avg, 3),
