@@ -104,7 +104,11 @@ let Sources = datatable(series_id: string, Source: string)
 energy_latest
 | where endpoint == "public_power" and ts between (_startTime .. _endTime)
 | join kind=inner Sources on series_id
-| summarize GW = round(sum(value) / 1000, 2)
+// First sum per UTC quarter-hour, then average per local time: when the
+// clocks go back in October, 02:00-03:00 local time occurs twice. Summing
+// by local time would double that hour; the average keeps the right level.
+| summarize MW = sum(value) by ts, Source
+| summarize GW = round(avg(MW) / 1000, 2)
     by Time = datetime_utc_to_local(ts, "Europe/Berlin"), Source
 | order by Time asc
 
