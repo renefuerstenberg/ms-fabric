@@ -474,7 +474,11 @@ How the rules work:
   every run.
 - A rule can fire once right after it is created or changed, if the current value already
   meets the condition.
-- The e-mail texts use the query columns as placeholders (`@RenewableShare`, `@AsOf`, …).
+- The e-mail texts insert query columns as **dynamic fields**: type `@` and select the column
+  from the list, so it appears as a chip. Text typed as `@Column` stays literal. Words directly
+  after a chip can be lost – place units in front of the chip or retype them.
+- Datetime columns (e.g. `AsOf`) are shown in ISO format with "Z" in the e-mail text, so they are
+  only added under **Context**, not in the message itself.
 
 ---
 
@@ -531,6 +535,7 @@ the column names.
 | The language model averaged band prices (unweighted) and summed totals repeated in every row (2,100 instead of 420 quarter-hours) | Function returns every figure **exactly once** – totals as a separate *Total* row, never repeated per row |
 | The agent (in Copilot) added unsupported claims ("no negative prices") – there was one negative quarter-hour | Agent rule: only state facts contained in query results; query extra details if needed |
 | Long periods ("last 30 days") are only partially covered | Agent rule: always state the actual period and number of data points |
+| For "renewable share right now" the agent used the measured values of `LoadAndShare()`, which lag 1–3 hours (47.2 % vs. 64.2 % on the dashboard) | Rule: for the current share always use `TrafficLight()`, which has a value for the current quarter-hour; `LoadAndShare()` only for past periods, load and residual load |
 
 **Rule of thumb:** simple factual questions are handled reliably by the agent with the base
 functions and examples. Recurring analyses with statistics belong in a dedicated KQL function so
@@ -661,7 +666,7 @@ the item. To undo, revert the commit and update again.
 | Generation data delay | Published 15–90 min after real time, sometimes more | Shown in the *Data Status* tile |
 | Prices for tomorrow | Available after the day-ahead auction, around 13:00 local time | EnergyPriceIngest every 15 min |
 | Renewable share above 100 % | More renewable generation than consumption | Correct; the surplus is exported or stored |
-| Daylight saving time | All data is stored in UTC; display converts to Europe/Berlin | `datetime_utc_to_local()` in every query |
+| Daylight saving time | All data is stored in UTC. When the clocks go back in October, 02:00–03:00 local time occurs twice; summing by local time doubled that hour in the Power Mix chart (~110 instead of ~55 GW on 2026-10-25) | Sum per `ts` (UTC) first, convert with `datetime_utc_to_local()` last. Nothing is averaged: line charts show both exact values of the repeated hour; the stacked Power Mix chart and the price columns show the first pass only, because a chart cannot show two values at the same time. The data agent reports the repeated hour twice (CEST and CET) |
 | Duplicate frequency seconds | After restarts or backfill runs | Removed by `frequency_1s` (`take_any`) |
 
 ---
