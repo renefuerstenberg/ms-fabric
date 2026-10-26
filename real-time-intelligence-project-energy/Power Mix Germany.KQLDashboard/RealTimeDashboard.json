@@ -1,11 +1,12 @@
 {
-  "schema_version": 86,
+  "schema_version": 88,
   "pagesNavWidth": 275.50001525878906,
   "flavor": "RTDashboard_Regular",
   "changeDetection": {
     "kind": "liveUpdates",
     "minRefreshRate": "30s",
-    "fallbackRefreshRate": "1m"
+    "fallbackRefreshRate": "1m",
+    "minRefreshRate_V2": "30s"
   },
   "tiles": [
     {
@@ -778,7 +779,7 @@
         "kind": "inline",
         "dataSourceId": "87f8e065-cc3f-4dcc-913b-f3dce6bfedc0"
       },
-      "text": "// Public net generation per source, grouped into 10 categories (GW)\nlet Sources = datatable(series_id: string, Source: string)\n[\n    \"fossil_brown_coal_lignite\", \"Lignite\",\n    \"fossil_hard_coal\",          \"Hard coal\",\n    \"fossil_gas\",                \"Natural gas\",\n    \"fossil_oil\",                \"Other fossil\",\n    \"fossil_coal_derived_gas\",   \"Other fossil\",\n    \"waste\",                     \"Other\",\n    \"others\",                    \"Other\",\n    \"geothermal\",                \"Other\",\n    \"biomass\",                   \"Biomass\",\n    \"hydro_run_of_river\",        \"Hydro\",\n    \"hydro_water_reservoir\",     \"Hydro\",\n    \"hydro_pumped_storage\",      \"Pumped storage\",\n    \"wind_offshore\",             \"Wind offshore\",\n    \"wind_onshore\",              \"Wind onshore\",\n    \"solar\",                     \"Solar\"\n];\nenergy_latest\n| where endpoint == \"public_power\" and ts between (_startTime .. _endTime)\n| join kind=inner Sources on series_id\n| summarize GW = round(sum(value) / 1000, 2)\n    by Time = datetime_utc_to_local(ts, \"Europe/Berlin\"), Source\n| order by Time asc",
+      "text": "// Public net generation per source, grouped into 10 categories (GW)\nlet Sources = datatable(series_id: string, Source: string)\n[\n\"fossil_brown_coal_lignite\", \"Lignite\",\n\"fossil_hard_coal\",          \"Hard coal\",\n\"fossil_gas\",                \"Natural gas\",\n\"fossil_oil\",                \"Other fossil\",\n\"fossil_coal_derived_gas\",   \"Other fossil\",\n\"waste\",                     \"Other\",\n\"others\",                    \"Other\",\n\"geothermal\",                \"Other\",\n\"biomass\",                   \"Biomass\",\n\"hydro_run_of_river\",        \"Hydro\",\n\"hydro_water_reservoir\",     \"Hydro\",\n\"hydro_pumped_storage\",      \"Pumped storage\",\n\"wind_offshore\",             \"Wind offshore\",\n\"wind_onshore\",              \"Wind onshore\",\n\"solar\",                     \"Solar\"\n];\nenergy_latest\n| where endpoint == \"public_power\" and ts between (_startTime .. _endTime)\n| join kind=inner Sources on series_id\n// Sum per UTC quarter-hour, never per local time. When the clocks go back\n// in October, 02:00-03:00 local time occurs twice; a stacked chart cannot\n// show two values at the same time, so only the first pass is shown.\n| summarize MW = sum(value) by ts, Source\n| summarize arg_min(ts, MW) by Time = datetime_utc_to_local(ts, \"Europe/Berlin\"), Source\n| project Time, Source, GW = round(MW / 1000, 2)\n| order by Time asc",
       "id": "20efbaf2-71b6-4983-bc96-77a43e2e5c84",
       "usedVariables": [
         "_endTime",
@@ -891,7 +892,7 @@
         "kind": "inline",
         "dataSourceId": "87f8e065-cc3f-4dcc-913b-f3dce6bfedc0"
       },
-      "text": "// Day-ahead prices for the whole calendar day today and (from ~13:00) tomorrow\nlet today = startofday(datetime_utc_to_local(now(), \"Europe/Berlin\"));\nenergy_latest\n| where endpoint == \"price\"\n| extend Time = datetime_utc_to_local(ts, \"Europe/Berlin\")\n| where Time >= today and Time < today + 2d\n| project Time,\n          Day = iff(Time < today + 1d, \"Today\", \"Tomorrow\"),\n          [\"ct/kWh\"] = round(value / 10, 2)\n| order by Time asc",
+      "text": "// Day-ahead prices for the whole calendar day today and (from ~13:00) tomorrow\nlet today = startofday(datetime_utc_to_local(now(), \"Europe/Berlin\"));\nenergy_latest\n| where endpoint == \"price\"\n| extend Time = datetime_utc_to_local(ts, \"Europe/Berlin\")\n| where Time >= today and Time < today + 2d\n// When the clocks go back in October, 02:00-03:00 local time occurs twice;\n// a column chart cannot show two values at the same time, so only the\n// first pass is shown. Nothing is averaged.\n| summarize arg_min(ts, value) by Time\n| project Time,\n          Day = iff(Time < today + 1d, \"Today\", \"Tomorrow\"),\n          [\"ct/kWh\"] = round(value / 10, 2)\n| order by Time asc",
       "id": "536e6926-8881-442c-b138-dd6b241b9e2e",
       "usedVariables": []
     },

@@ -36,7 +36,13 @@
       },
       {
         "id": "4baf6e4b-74a6-405d-a793-d886ff618cbb",
-        "content": "let today_local = startofday(datetime_utc_to_local(now(), \"Europe/Berlin\"));\nlet from_utc = datetime_local_to_utc(today_local, \"Europe/Berlin\");\nlet to_utc   = datetime_local_to_utc(today_local + 1d, \"Europe/Berlin\");\nDayAheadPrice()\n| where ts >= from_utc and ts < to_utc\n| top 5 by Price_ct_kWh asc\n| project Time_local, Price_ct_kWh, Price_EUR_MWh\n\n\n\n\nlet today_local = startofday(datetime_utc_to_local(now(), \"Europe/Berlin\"));\nlet from_utc = datetime_local_to_utc(today_local, \"Europe/Berlin\");\nlet to_utc   = datetime_local_to_utc(today_local + 1d, \"Europe/Berlin\");\nlet day = DayAheadPrice() | where ts >= from_utc and ts < to_utc;\nday\n| summarize Avg_ct_kWh = round(avg(Price_ct_kWh), 2), QuarterHours = count()\n    by Hour_local = bin(Time_local, 1h)\n| top 3 by Avg_ct_kWh asc\n| extend DayMin = toscalar(day | summarize round(min(Price_ct_kWh), 2)),\n         DayAvg = toscalar(day | summarize round(avg(Price_ct_kWh), 2)),\n         DayMax = toscalar(day | summarize round(max(Price_ct_kWh), 2)),\n         DayQuarterHours = toscalar(day | count)",
+        "content": "let today_local = startofday(datetime_utc_to_local(now(), \"Europe/Berlin\"));\nlet from_utc = datetime_local_to_utc(today_local, \"Europe/Berlin\");\nlet to_utc   = datetime_local_to_utc(today_local + 1d, \"Europe/Berlin\");\nDayAheadPrice()\n| where ts >= from_utc and ts < to_utc\n| top 5 by Price_ct_kWh asc\n| project Time_local, Price_ct_kWh, Price_EUR_MWh\n\n\n\n\nlet today_local = startofday(datetime_utc_to_local(now(), \"Europe/Berlin\"));\nlet from_utc = datetime_local_to_utc(today_local, \"Europe/Berlin\");\nlet to_utc   = datetime_local_to_utc(today_local + 1d, \"Europe/Berlin\");\nlet day = DayAheadPrice() | where ts >= from_utc and ts < to_utc;\nday\n| summarize Avg_ct_kWh = round(avg(Price_ct_kWh), 2), QuarterHours = count()\n    by Hour_local = bin(Time_local, 1h)\n| top 3 by Avg_ct_kWh asc\n| extend DayMin = toscalar(day | summarize round(min(Price_ct_kWh), 2)),\n         DayAvg = toscalar(day | summarize round(avg(Price_ct_kWh), 2)),\n         DayMax = toscalar(day | summarize round(max(Price_ct_kWh), 2)),\n         DayQuarterHours = toscalar(day | count)\n\n         ",
+        "title": "",
+        "dataSourceId": "710cba50-4849-4de1-8c14-30c3c6bd5c29"
+      },
+      {
+        "id": "50b99e36-e112-46c8-aa44-4094c2420d0f",
+        "content": ".show materialized-view ['frequency_1s']\n\n.show materialized-view ['energy_latest']\n\n",
         "title": "",
         "dataSourceId": "710cba50-4849-4de1-8c14-30c3c6bd5c29"
       }
