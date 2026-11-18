@@ -2,7 +2,7 @@
 
 **One bad query, four steps, 26 times faster – measured on 100 million rows in a Microsoft Fabric Eventhouse.**
 
-📖 **Blog article:** [Link to the article on renefuerstenberg.de]
+📖 **Blog article:** [One bad query, four steps, 26 times faster: KQL performance in Real-Time Intelligence](https://renefuerstenberg.de/microsoftfabric/kql-performance-real-time-intelligence-26-times-faster/)
 
 This folder contains everything you need to rebuild the test from the article: a notebook that
 generates the test data and a KQL script with all queries and the measurement.
