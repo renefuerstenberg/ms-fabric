@@ -11,7 +11,7 @@
 //   from 2026-11-09 (UTC) on – a fixed date instead of ago(7d), so the
 //   result does not depend on the day the queries are run.
 //
-// Measuring: run each query 3 times. Every query starts with
+// Measuring: run each query at least 3 times. Every query starts with
 //   let _tag = "PERF-TEST <id>";  so section 3 can find the runs again.
 // ============================================================
 
@@ -75,6 +75,8 @@ ShopEvents
 
 // Q3 – + only needed columns, lookup for the small Products table, broadcast join for the
 //      large Users table (the left side is small after filtering), one-step aggregation
+//      count_distinct() instead of dcount(): dcount() is only an estimate and would
+//      not return exactly the same result as Q0–Q2
 
 let _tag = "PERF-TEST Q3-lookup";
 ShopEvents
@@ -85,7 +87,22 @@ ShopEvents
 | project SessionId, UserId, ProductId, Price = todouble(Payload.price)
 | lookup kind=inner (Products | project ProductId, Category) on ProductId
 | join kind=inner hint.strategy=broadcast (Users | project UserId, Segment) on UserId   // small left side, large right side
-| summarize Revenue = round(sum(Price), 2), BuyingSessions = dcount(SessionId) by Category, Segment
+| summarize Revenue = round(sum(Price), 2), BuyingSessions = count_distinct(SessionId) by Category, Segment
+| order by Revenue desc
+
+// Q3b – the same as Q3, but without the broadcast hint (for comparison:
+//       broadcast saves memory but sends the left side to all nodes)
+
+let _tag = "PERF-TEST Q3b-nobroadcast";
+ShopEvents
+| where Timestamp >= datetime(2026-11-09)
+| where EventType == "purchase" and Message has "confirmed"
+| where Payload has "mobile"
+| where tostring(Payload.device) == "mobile"
+| project SessionId, UserId, ProductId, Price = todouble(Payload.price)
+| lookup kind=inner (Products | project ProductId, Category) on ProductId
+| join kind=inner (Users | project UserId, Segment) on UserId
+| summarize Revenue = round(sum(Price), 2), BuyingSessions = count_distinct(SessionId) by Category, Segment
 | order by Revenue desc
 
 
@@ -117,7 +134,7 @@ Purchases
 | where Device == "mobile"
 | lookup kind=inner (Products | project ProductId, Category) on ProductId
 | join kind=inner hint.strategy=broadcast (Users | project UserId, Segment) on UserId   // small left side, large right side
-| summarize Revenue = round(sum(Price), 2), BuyingSessions = dcount(SessionId) by Category, Segment
+| summarize Revenue = round(sum(Price), 2), BuyingSessions = count_distinct(SessionId) by Category, Segment
 | order by Revenue desc
 
 

@@ -1,6 +1,6 @@
 # KQL Performance in Real-Time Intelligence
 
-**One bad query, four steps, 27 times faster – measured on 100 million rows in a Microsoft Fabric Eventhouse.**
+**One bad query, four steps, 26 times faster – measured on 100 million rows in a Microsoft Fabric Eventhouse.**
 
 📖 **Blog article:** [Link to the article on renefuerstenberg.de]
 
@@ -16,16 +16,16 @@ Median of all runs, F64 trial capacity, 100 million events.
 | Q0 – starting point | 4.93 s | 7.42 s | 72 MB | 1× |
 | Q1 – time filter first | 0.73 s | 0.83 s | 72 MB | 6.8× |
 | Q2 – filters before the join | 0.55 s | 0.69 s | 72 MB | 9.0× |
-| Q3 – lookup + broadcast join | 0.67 s | 0.56 s | 40 MB | 7.4× |
-| Q3b – lookup, no hint | 0.56 s | 0.63 s | 95 MB | 8.8× |
-| Q4 – update policy | **0.18 s** | **0.08 s** | 47 MB | **27×** |
+| Q3 – lookup + broadcast join | 0.67 s | 0.61 s | 39 MB | 7.4× |
+| Q3b – lookup, no hint | 0.56 s | 0.63 s | 88 MB | 8.8× |
+| Q4 – update policy | **0.19 s** | **0.09 s** | 29 MB | **26×** |
 
 ## Files
 
 | File | Content |
 |---|---|
 | `generate_perf_demo_data.ipynb` | Fabric notebook: creates the tables and generates the test data in your Eventhouse |
-| `kql_performance_queries.kql` | Queries Q0–Q4, the update policy for Q4, the measurement query and cleanup |
+| `kql_performance_queries.kql` | Queries Q0–Q4 (plus Q3b without the broadcast hint), the update policy for Q4, the measurement query and cleanup |
 
 ## Test data
 
