@@ -9,6 +9,7 @@ code, KQL scripts, Fabric items and a detailed README.
 | Project | Fabric workloads | Description |
 |---|---|---|
 | [Power Mix Germany](real-time-intelligence-project-energy/) | Real-Time Intelligence: Eventstream, Eventhouse, Real-Time Dashboard, Activator, Data agent | Germany's power grid in real time: generation mix, renewable share, day-ahead prices, cross-border flows and grid frequency from the Energy-Charts API |
+| [KQL Performance](real-time-intelligence-kql-performance/) | Real-Time Intelligence: Eventhouse, KQL queryset, notebook | One bad KQL query, four optimization steps, 27 times faster – measured on 100 million rows |
 
 More projects will be added over time.
 
