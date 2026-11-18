@@ -1,0 +1,157 @@
+// ============================================================
+// KQL performance test – the queries
+// Run in a KQL queryset on the database eh_perf. The test data
+// (ShopEvents, Users, Products) is created by the notebook
+// generate_perf_demo_data.ipynb.
+//
+// Question answered by every query:
+//   "Revenue and number of buying sessions per product category and
+//    customer segment for mobile purchases in the last 7 days"
+//   "Last 7 days" = the last 7 days of the test data (until 2026-11-16):
+//   from 2026-11-09 (UTC) on – a fixed date instead of ago(7d), so the
+//   result does not depend on the day the queries are run.
+//
+// Measuring: run each query 3 times. Every query starts with
+//   let _tag = "PERF-TEST <id>";  so section 3 can find the runs again.
+// ============================================================
+
+// ------------------------------------------------------------
+// 1) The queries
+// ------------------------------------------------------------
+
+// Q0 – BAD: everything you shouldn't do
+//   - no early time filter: every row is converted, enriched and joined first
+//   - time computed from epoch milliseconds and converted to local time per row
+//   - JSON parsed for all rows
+//   - huge fact table on the LEFT side of a join, the join happens before any filter
+//   - tolower(...) == and contains instead of == and has
+//   - two-step aggregation over a high-cardinality key (SessionId)
+
+let _tag = "PERF-TEST Q0-bad";
+ShopEvents
+| extend EventTime = unixtime_milliseconds_todatetime(EventTimeUnix)
+| extend LocalTime = datetime_utc_to_local(EventTime, "Europe/Berlin")
+| extend Device = tostring(Payload.device), Price = todouble(Payload.price)
+| join kind=inner Users on UserId
+| join kind=inner Products on ProductId
+| where LocalTime >= datetime_utc_to_local(datetime(2026-11-09), "Europe/Berlin")
+| where tolower(EventType) == "purchase" and Message contains "confirmed"
+| where Device == "mobile"
+| summarize Revenue = sum(Price) by Category, Segment, SessionId
+| summarize Revenue = round(sum(Revenue), 2), BuyingSessions = count() by Category, Segment
+| order by Revenue desc
+
+
+// Q1 – time filter first, on the datetime column
+
+let _tag = "PERF-TEST Q1-timefilter";
+ShopEvents
+| where Timestamp >= datetime(2026-11-09)
+| extend Device = tostring(Payload.device), Price = todouble(Payload.price)
+| join kind=inner Users on UserId
+| join kind=inner Products on ProductId
+| where tolower(EventType) == "purchase" and Message contains "confirmed"
+| where Device == "mobile"
+| summarize Revenue = sum(Price) by Category, Segment, SessionId
+| summarize Revenue = round(sum(Revenue), 2), BuyingSessions = count() by Category, Segment
+| order by Revenue desc
+
+
+// Q2 – + all filters before the joins, == and has instead of tolower() and contains
+
+let _tag = "PERF-TEST Q2-filters";
+ShopEvents
+| where Timestamp >= datetime(2026-11-09)
+| where EventType == "purchase" and Message has "confirmed"
+| extend Device = tostring(Payload.device)
+| where Device == "mobile"
+| extend Price = todouble(Payload.price)
+| join kind=inner Users on UserId
+| join kind=inner Products on ProductId
+| summarize Revenue = sum(Price) by Category, Segment, SessionId
+| summarize Revenue = round(sum(Revenue), 2), BuyingSessions = count() by Category, Segment
+| order by Revenue desc
+
+
+// Q3 – + only needed columns, lookup for the small Products table, broadcast join for the
+//      large Users table (the left side is small after filtering), one-step aggregation
+
+let _tag = "PERF-TEST Q3-lookup";
+ShopEvents
+| where Timestamp >= datetime(2026-11-09)
+| where EventType == "purchase" and Message has "confirmed"
+| where Payload has "mobile"                       // cheap pre-filter before JSON parsing
+| where tostring(Payload.device) == "mobile"
+| project SessionId, UserId, ProductId, Price = todouble(Payload.price)
+| lookup kind=inner (Products | project ProductId, Category) on ProductId
+| join kind=inner hint.strategy=broadcast (Users | project UserId, Segment) on UserId   // small left side, large right side
+| summarize Revenue = round(sum(Price), 2), BuyingSessions = dcount(SessionId) by Category, Segment
+| order by Revenue desc
+
+
+// ------------------------------------------------------------
+// 2) Q4 – do the expensive work once at ingestion: update policy
+//      (typed Device and Price columns, purchases only)
+// ------------------------------------------------------------
+
+.create table Purchases (Timestamp: datetime, SessionId: string, UserId: string, ProductId: int,
+                         Device: string, Price: real)
+
+.create-or-alter function with (folder = "UpdatePolicies") ExtractPurchases() {
+    ShopEvents
+    | where EventType == "purchase"
+    | project Timestamp, SessionId, UserId, ProductId,
+              Device = tostring(Payload.device), Price = todouble(Payload.price)
+}
+
+.alter table Purchases policy update
+@'[{"IsEnabled": true, "Source": "ShopEvents", "Query": "ExtractPurchases()", "IsTransactional": false}]'
+
+// Backfill the existing data once (new data is handled by the policy)
+
+.set-or-append Purchases <| ExtractPurchases()
+
+let _tag = "PERF-TEST Q4-updatepolicy";
+Purchases
+| where Timestamp >= datetime(2026-11-09)
+| where Device == "mobile"
+| lookup kind=inner (Products | project ProductId, Category) on ProductId
+| join kind=inner hint.strategy=broadcast (Users | project UserId, Segment) on UserId   // small left side, large right side
+| summarize Revenue = round(sum(Price), 2), BuyingSessions = dcount(SessionId) by Category, Segment
+| order by Revenue desc
+
+
+// ------------------------------------------------------------
+// 3) Measurement: duration, CPU and memory per test query
+//    (State "Failed" = the query hit a limit, e.g. memory – also a result)
+// ------------------------------------------------------------
+
+.show queries
+| where StartedOn > ago(1d) and Text contains "PERF-TEST" and not(Text startswith ".show")
+| extend Test = extract(@"PERF-TEST ([\w-]+)", 1, Text)
+| extend Extents = column_ifexists("ScannedExtentsStatistics", dynamic(null)),
+         Rows    = column_ifexists("ScannedRowsStatistics", dynamic(null)),
+         Failure = column_ifexists("FailureReason", "")
+| project StartedOn, Test, State, Duration, TotalCpu, MemoryPeak, Extents, Rows, Failure
+| order by Test asc, StartedOn asc
+
+// Summary per test: median of the runs – this becomes the table in the article
+
+.show queries
+| where StartedOn > ago(1d) and Text contains "PERF-TEST" and not(Text startswith ".show")
+| extend Test = extract(@"PERF-TEST ([\w-]+)", 1, Text)
+| where State == "Completed"
+| summarize Runs          = count(),
+            Duration_s    = round(percentile(Duration / 1s, 50), 2),
+            Cpu_s         = round(percentile(TotalCpu / 1s, 50), 2),
+            MemoryPeak_MB = round(percentile(MemoryPeak / 1024.0 / 1024.0, 50), 0)
+    by Test
+| order by Test asc
+
+
+// ------------------------------------------------------------
+// 4) Cleanup – drop everything when the demo is done
+// ------------------------------------------------------------
+// .drop table Purchases
+// .drop function ExtractPurchases
+// .drop tables (ShopEvents, Users, Products)
